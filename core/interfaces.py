@@ -110,7 +110,7 @@ class ObjectDetector:
                 tag_to_camera =  world_to_camera @ tag_to_world
                 tag = (name,tag_to_camera)
                 tags.append(tag)
-
+        # print(len(tags))
         tags = [tag for tag in tags if self.check_tag_visibility(tag)]
         self.detections = tags
 

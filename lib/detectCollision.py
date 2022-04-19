@@ -37,9 +37,9 @@ def detectCollisionOnce(linePt1, linePt2, box):
     isCollided = np.ones(1)
 
     # Divide box into lower left point and "size"
-    boxPt1 = np.array([box[0],box[1], box[2]])
+    boxPt1 = np.array([box[0]-0.1,box[1]-0.1, box[2]-0.1])
     # Create point in the opposize corner of the box
-    boxPt2 = np.array([box[3],box[4], box[5]])
+    boxPt2 = np.array([box[3]+0.1,box[4]+0.1, box[5]+0.1])
     boxSize = boxPt2 - boxPt1
     # Find slopes vector
     lineSlope = linePt2 - linePt1

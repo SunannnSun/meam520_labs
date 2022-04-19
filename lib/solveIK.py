@@ -50,7 +50,7 @@ class IK:
         """
         Helper function for the End Effector Task. Computes the displacement
         vector and axis of rotation from the current frame to the target frame
-
+DO: implement me!
         This data can also be interpreted as an end effector velocity which will
         bring the end effector closer to the target position and orientation.
 
@@ -69,10 +69,13 @@ class IK:
 
         ## STUDENT CODE STARTS HERE
 
-        displacement = np.zeros(3)
-        axis = np.zeros(3)
-
-        ## END STUDENT CODE
+        displacement = target[0:3,-1] - current[0:3,-1]
+        R = np.matmul(np.linalg.inv(current[0:3,0:3]),target[0:3,0:3])
+        S = 1/2*(R-R.transpose())
+        axis = np.array([S[2,1], S[0,2], S[1,0]])
+        axis = current[0:3,0:3] @ axis
+        # print(S)
+        # print(axis)
 
         return displacement, axis
 
@@ -101,8 +104,10 @@ class IK:
 
         ## STUDENT CODE STARTS HERE
 
-        distance = 0
-        angle = 0
+        distance = np.linalg.norm(G[0:3,-1] - H[0:3,-1])
+        R = H[0:3,0:3].transpose()@G[0:3,0:3]
+        cos = np.clip((np.trace(R)-1)/2, -1, 1)
+        angle = acos(cos)
 
         ## END STUDENT CODE
 
@@ -128,7 +133,10 @@ class IK:
         ## STUDENT CODE STARTS HERE
 
         success = False
-
+        _, pose = IK.fk.forward(q)
+        d, ang = IK.distance_and_angle(target,pose)
+        if all(q<IK.upper) and all(q>IK.lower) and d < self.linear_tol and ang < self.angular_tol:
+            success = True
         ## END STUDENT CODE
 
         return success
@@ -154,9 +162,9 @@ class IK:
         """
 
         ## STUDENT CODE STARTS HERE
-
-        dq = np.zeros(7)
-
+        joints, pose = IK.fk.forward(q)
+        dis, sin_ang = IK.displacement_and_axis(target,pose)
+        dq = IK_velocity(q, dis, sin_ang)
         ## END STUDENT CODE
 
         return dq
@@ -220,17 +228,20 @@ class IK:
 
             # Primary Task - Achieve End Effector Pose
             dq_ik = self.end_effector_task(q,target)
-
             # Secondary Task - Center Joints
             dq_center = self.joint_centering_task(q)
 
             ## STUDENT CODE STARTS HERE
 
             # Task Prioritization
-            dq = np.zeros(7) # TODO: implement me!
+            J = calcJacobian(q)
+            additional_freedom = null_space(J).reshape((7,)) # return orthonormal basis
+            approximated_dq_center = np.dot(additional_freedom, dq_center)*additional_freedom
+            dq = dq_ik + approximated_dq_center # TODO: implement me!
 
             # Termination Conditions
-            if True: # TODO: check termination conditions
+            if len(rollout) == self.max_steps or np.linalg.norm(dq) < self.min_step_size: # TODO: check termination conditions
+            # if True:
                 break # exit the while loop if conditions are met!
 
             ## END STUDENT CODE

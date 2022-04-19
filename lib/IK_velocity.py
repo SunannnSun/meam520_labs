@@ -1,5 +1,6 @@
 import numpy as np
 from lib.calcJacobian import calcJacobian
+from numpy import linalg
 
 
 def IK_velocity(q_in, v_in, omega_in):
@@ -17,7 +18,26 @@ def IK_velocity(q_in, v_in, omega_in):
     """
 
     ## STUDENT CODE GOES HERE
+    J = calcJacobian(q_in)
+    # zeta = np.array([[v_in[0]], [v_in[1]], [v_in[2]], [omega_in[0]], [omega_in[1]], [omega_in[2]]])
+    zeta = (np.append(v_in, omega_in))
+    j = 0
+    # print(np.shape(J))
+    for i in range(0, len(zeta)):
+        if np.isnan(zeta[i-j]):
+            zeta = np.delete(zeta, i-j, axis=0)
+            J = np.delete(J, i-j, axis=0)
+            j+=1
 
-    dq = np.zeros(7)
+
+    #print(zeta)
+    #print(JJ)
+    # METHOD 1
+    #J_inv = np.dot(np.transpose(J), np.linalg.inv(np.dot(J, np.transpose(J))))
+    #dq = np.dot(J_inv, zeta)
+    # METHOD 2
+    dq = np.linalg.lstsq(J, zeta, rcond = None)[0]
+    dq = dq.flatten()
+
 
     return dq

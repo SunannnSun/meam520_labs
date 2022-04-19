@@ -9,6 +9,20 @@ class FK():
         # useful in computing the forward kinematics. The data you will need
         # is provided in the lab handout
 
+
+        # 7 Joints in total plus an additional end-effector, which means 8
+        # transformations and its corresponding 8 sets of parameters
+        self.d     = [0.141, 0.192, 0, 0.121, 0, 0.259, -0.015, -0.159]
+        self.a     = [0, 0, 0, 0.0825, 0.0825, 0, 0.088, 0]
+        self.alpha = [0, -pi/2, pi/2, -pi/2, -pi/2, pi/2, pi/2, pi]
+        self.offset = [np.identity(4),
+                       np.identity(4),
+                       np.array([[1,0,0,0],[0,1,0,0],[0,0,1,0.195],[0,0,0,1]]),
+                       np.identity(4),
+                       np.array([[1,0,0,0],[0,1,0,0],[0,0,1,0.125],[0,0,0,1]]),
+                       np.array([[1,0,0,0],[0,1,0,0],[0,0,1,0.015],[0,0,0,1]]),
+                       np.array([[1,0,0,0],[0,1,0,0],[0,0,1,-0.051],[0,0,0,1]]),
+                       np.identity(4)]
         pass
 
     def forward(self, q):
@@ -26,17 +40,34 @@ class FK():
         """
 
         # Your Lab 1 code starts here
-
         jointPositions = np.zeros((8,3))
+        T_accumulated = np.identity(4)
+        q = np.array([0, q[0], q[1], q[2],  pi-q[3], q[4], pi-q[5], pi/4-q[6]])
+        d = self.d
+        a = self.a
+        alpha = self.alpha
+        offset = self.offset
+        T_list = []
+        for i in np.arange(q.shape[0]):
+            T = np.array([[np.cos(q[i]), -np.sin(q[i])*np.cos(alpha[i]),  np.sin(q[i])*np.sin(alpha[i]), a[i]*np.cos(q[i])],
+                          [np.sin(q[i]),  np.cos(q[i])*np.cos(alpha[i]), -np.cos(q[i])*np.sin(alpha[i]), a[i]*np.sin(q[i])],
+                          [0, np.sin(alpha[i]), np.cos(alpha[i]), d[i]],
+                          [0, 0, 0, 1]])
+            T = T @ offset[i]
+            T_accumulated = T_accumulated @ T
+            # T_list.append(T_accumulated)
+            jointPositions[i,:] = T_accumulated[0:3,-1]
+
+
         T0e = np.identity(4)
 
         # Your code ends here
 
-        return jointPositions, T0e
+        return jointPositions, T_accumulated
 
     # feel free to define additional helper methods to modularize your solution for lab 1
 
-    
+
     # This code is for Lab 2, you can ignore it ofr Lab 1
     def get_axis_of_rotation(self, q):
         """
@@ -49,9 +80,17 @@ class FK():
 
         """
         # STUDENT CODE HERE: This is a function needed by lab 2
+        z = np.zeros(shape = (3,7))
+        T = self.compute_Ai(q)
+        for i in range (0, len(T)):
+            #z[0:3,x] = np.cross(axis[:, x], (on-joint_positions[x,:]))
+            #z[3:6,x] = axis[:, x]
+            z[0:3,i] = T[i][0:3,2]
+            #np.append(z, T[i][:,2])
+            #print(z)
+            #print(" ")
+        return(z)
 
-        return()
-    
     def compute_Ai(self, q):
         """
         INPUT:
@@ -60,11 +99,50 @@ class FK():
         OUTPUTS:
         Ai: - 4x4 list of np array of homogenous transformations describing the FK of the robot. Transformations are not
               necessarily located at the joint locations
-        """
-        # STUDENT CODE HERE: This is a function needed by lab 2
 
-        return()
-    
+        """
+        T = []
+        for k in range(1, 8):
+            jointPositions = np.zeros((8,3))
+            T0k = np.identity(4)
+
+            q0 = q[0]
+            q1 = q[1]
+            q2 = q[2]
+            q3 = q[3]
+            q4 = q[4]
+            q5 = q[5]
+            q6 = q[6]
+
+            a = np.array([0,0,0,0.0825,0.0825,0,0.088,0])
+            alpha = np.array([0,-pi/2,pi/2,pi/2,pi/2,-pi/2,pi/2,0])
+            d = np.array([0.141,0.192,0,0.316,0,0.384,0,0.21])
+            theta = np.array([0,q0,q1,q2,pi+q3,q4,q5-pi,q6-pi/4])
+
+            joint_excursion =  np.array([[0,0,0,1],
+            			      [0,0,0,1],
+            			      [0,0,0.195,1],
+            			      [0,0,0,1],
+            			      [0,0,0.125,1],
+            			      [0,0,-0.015,1],
+            			      [0,0,0.051,1],
+            			      [0,0,0,1]])
+
+            for i in range (0,k):
+
+                A = np.array([[np.cos(theta[i]),-np.sin(theta[i]) * np.cos(alpha[i]),
+                                  np.sin(theta[i]) * np.sin(alpha[i]),a[i] * np.cos(theta[i])],
+                                 [np.sin(theta[i]),np.cos(theta[i]) * np.cos(alpha[i]),
+                                 -np.cos(theta[i]) * np.sin(alpha[i]),a[i] * np.sin(theta[i])],
+                                 [0,np.sin(alpha[i]),np.cos(alpha[i]),d[i]],
+                                 [0,0,0,1]]) #DH convention
+
+
+                T0k = T0k @ A
+            T.append(T0k)
+        #print(T)
+        return(T)
+
 if __name__ == "__main__":
 
     fk = FK()
@@ -73,6 +151,6 @@ if __name__ == "__main__":
     q = np.array([0,0,0,-pi/2,0,pi/2,pi/4])
 
     joint_positions, T0e = fk.forward(q)
-    
+
     print("Joint Positions:\n",joint_positions)
     print("End Effector Pose:\n",T0e)
