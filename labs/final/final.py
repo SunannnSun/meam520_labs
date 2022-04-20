@@ -40,27 +40,60 @@ def camera_to_robot():
     T_r_c[:, -1] = np.append(P_r_c, 1)
 
     # Verify the solution: the rotation matrix is identity matrix, and the position vector is [0, 0, -0.5]
-    print(np.linalg.inv(T_r_c) @ T_t0_c)
+    # print(np.linalg.inv(T_r_c) @ T_t0_c)
 
     return np.linalg.inv(T_r_c)
 
 
-def positions_to_joints(block_list):
-    joint_list = []
+def pose_to_joint(block_pose):
     seed = arm.neutral_position()
-    target = np.array([
-        [1, 0, 0, 0.3],
-        [0, -1, 0, 0.3],
-        [0, 0, -1, .25],
-        [0, 0, 0, 1],
-    ])
-    q, success, rollout = ik.inverse(target, seed)
-
+    q, success, _ = ik.inverse(block_pose, seed)
     print("Success: ", success)
     print("Solution: ", q)
-    print("Iterations:", len(rollout))
-    joint_list.append(q)
-    return joint_list
+    return q, success
+
+
+def grasp_and_stack(block_pose, no_blocks):
+    tag_pose = block_pose.copy()
+    tag_pose[0:3, 0:3] = tag_pose[0:3, 0:3] @ np.array([[-1, 0, 0], [0, 1, 0], [0, 0, -1]])
+    while not pose_to_joint(tag_pose)[1]:
+        tag_pose[0:3, 0:3] = tag_pose[0:3, 0:3] @ np.array([[0, -1, 0], [1, 0, 0], [0, 0, 1]])
+
+    above_pose = tag_pose.copy()
+    above_pose[2, -1] = above_pose[2, -1] + 0.05
+    above_joint, _ = pose_to_joint(above_pose)
+
+    grasp_pose = tag_pose.copy()
+    grasp_pose[2, -1] = grasp_pose[2, -1] - 0.025
+    grasp_joint, _ = pose_to_joint(grasp_pose)
+
+    stack_up_pose = np.array([[1, 0, 0, 0.56], [0, -1, 0, 0.17], [0, 0, -1, 0.2+0.4], [0, 0, 0, 1]])
+    stack_up_joint, _ = pose_to_joint(stack_up_pose)
+
+    margin = 0.005
+    stack_down_pose = np.array([[1, 0, 0, 0.56], [0, -1, 0, 0.17], [0, 0, -1, 0.2+no_blocks * 0.05 + 0.025 + margin], [0, 0, 0, 1]])
+    stack_down_joint, _ = pose_to_joint(stack_down_pose)
+
+    print("Move to above the block")
+    arm.safe_move_to_position(above_joint)
+    print("Move to grasping position")
+    arm.safe_move_to_position(grasp_joint)
+    print("Close the gripper")
+    arm.close_gripper()
+    print("Move to above the block")
+    arm.safe_move_to_position(above_joint)
+    print("Move to above the stacking tower")
+    arm.safe_move_to_position(stack_up_joint)
+    print("Move to place down the block")
+    arm.safe_move_to_position(stack_down_joint)
+    print("Release the block")
+    arm.open_gripper()
+    print("Move to above the stacking tower")
+    arm.safe_move_to_position(stack_up_joint)
+    print("Move to above the neutral position")
+    arm.safe_move_to_position(arm.neutral_position())
+    return None
+
 
 
 if __name__ == "__main__":
@@ -75,9 +108,10 @@ if __name__ == "__main__":
     arm = ArmController()
     detector = ObjectDetector()
     ik = IK()
+    arm.safe_move_to_position(arm.neutral_position())
+    arm.open_gripper()
     print("neutral position", arm.neutral_position())
 
-    arm.safe_move_to_position(arm.neutral_position())  # on your mark!
 
     print("\n****************")
     if team == 'blue':
@@ -94,10 +128,20 @@ if __name__ == "__main__":
     T_t0_c = detector.detections[0][1]
 
     # Detect some tags...
-    for (name, pose) in detector.get_detections():
-        print(name, '\n', T_c_r @ pose)
+    static_blocks = []
+    tag_list = detector.get_detections()
 
-    # Move around...
-    # arm.safe_move_to_position(q)
+    for (name, pose) in tag_list[1: -1]:
+        T_b_r = T_c_r @ pose
+        if T_b_r[1, -1] <= 0:
+            static_blocks.append(T_b_r)
+
+    for i, block in enumerate(static_blocks):
+        print(i)
+        grasp_and_stack(block, i)
+
+
+
+
 
     # END STUDENT CODE

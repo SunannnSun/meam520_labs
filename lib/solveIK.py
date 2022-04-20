@@ -1,21 +1,21 @@
 import numpy as np
-from math import pi, acos
+from math import pi, acos, sin
 from scipy.linalg import null_space
 
 from lib.calcJacobian import calcJacobian
 from lib.calculateFK import FK
 from lib.IK_velocity import IK_velocity
 
+
 class IK:
-
     # JOINT LIMITS
-    lower = np.array([-2.8973,-1.7628,-2.8973,-3.0718,-2.8973,-0.0175,-2.8973])
-    upper = np.array([2.8973,1.7628,2.8973,-0.0698,2.8973,3.7525,2.8973])
+    lower = np.array([-2.8973, -1.7628, -2.8973, -3.0718, -2.8973, -0.0175, -2.8973])
+    upper = np.array([2.8973, 1.7628, 2.8973, -0.0698, 2.8973, 3.7525, 2.8973])
 
-    center = lower + (upper - lower) / 2 # compute middle of range of motion of each joint
+    center = lower + (upper - lower) / 2  # compute middle of range of motion of each joint
     fk = FK()
 
-    def __init__(self,linear_tol=1e-4, angular_tol=1e-3, max_steps=500, min_step_size=1e-5):
+    def __init__(self, linear_tol=1e-4, angular_tol=1e-3, max_steps=200, min_step_size=1e-5):
         """
         Constructs an optimization-based IK solver with given solver parameters.
         Default parameters are tuned to reasonable values.
@@ -39,7 +39,6 @@ class IK:
         self.angular_tol = angular_tol
         self.max_steps = max_steps
         self.min_step_size = min_step_size
-
 
     ######################
     ## Helper Functions ##
@@ -69,11 +68,12 @@ DO: implement me!
 
         ## STUDENT CODE STARTS HERE
 
-        displacement = target[0:3,-1] - current[0:3,-1]
-        R = np.matmul(np.linalg.inv(current[0:3,0:3]),target[0:3,0:3])
-        S = 1/2*(R-R.transpose())
-        axis = np.array([S[2,1], S[0,2], S[1,0]])
-        axis = current[0:3,0:3] @ axis
+        displacement = target[0:3, -1] - current[0:3, -1]
+        R = current[0:3, 0:3].transpose() @ target[0:3, 0:3]
+        S = 1 / 2 * (R - R.transpose())
+        axis = np.array([S[2, 1], S[0, 2], S[1, 0]])
+        axis = current[0:3, 0:3] @ axis
+
         # print(S)
         # print(axis)
 
@@ -104,16 +104,16 @@ DO: implement me!
 
         ## STUDENT CODE STARTS HERE
 
-        distance = np.linalg.norm(G[0:3,-1] - H[0:3,-1])
-        R = H[0:3,0:3].transpose()@G[0:3,0:3]
-        cos = np.clip((np.trace(R)-1)/2, -1, 1)
+        distance = np.linalg.norm(G[0:3, -1] - H[0:3, -1])
+        R = H[0:3, 0:3].transpose() @ G[0:3, 0:3]
+        cos = np.clip((np.trace(R) - 1) / 2, -1, 1)
         angle = acos(cos)
-
+        # print("theangle is", angle)
         ## END STUDENT CODE
 
         return distance, angle
 
-    def is_valid_solution(self,q,target):
+    def is_valid_solution(self, q, target):
         """
         Given a candidate solution, determine if it achieves the primary task
         and also respects the joint limits.
@@ -134,8 +134,8 @@ DO: implement me!
 
         success = False
         _, pose = IK.fk.forward(q)
-        d, ang = IK.distance_and_angle(target,pose)
-        if all(q<IK.upper) and all(q>IK.lower) and d < self.linear_tol and ang < self.angular_tol:
+        d, ang = IK.distance_and_angle(target, pose)
+        if all(q < IK.upper) and all(q > IK.lower) and d < self.linear_tol and ang < self.angular_tol:
             success = True
         ## END STUDENT CODE
 
@@ -146,7 +146,7 @@ DO: implement me!
     ####################
 
     @staticmethod
-    def end_effector_task(q,target):
+    def end_effector_task(q, target):
         """
         Primary task for IK solver. Computes a joint velocity which will reduce
         the error between the target end effector pose and the current end
@@ -163,14 +163,16 @@ DO: implement me!
 
         ## STUDENT CODE STARTS HERE
         joints, pose = IK.fk.forward(q)
-        dis, sin_ang = IK.displacement_and_axis(target,pose)
+        dis, sin_ang = IK.displacement_and_axis(target, pose)
+
+        # print(sin_ang)
         dq = IK_velocity(q, dis, sin_ang)
         ## END STUDENT CODE
 
         return dq
 
     @staticmethod
-    def joint_centering_task(q,rate=5e-1):
+    def joint_centering_task(q, rate=5e-1):
         """
         Secondary task for IK solver. Computes a joint velocity which will
         reduce the offset between each joint's angle and the center of its range
@@ -193,7 +195,7 @@ DO: implement me!
 
         # normalize the offsets of all joints to range from -1 to 1 within the allowed range
         offset = 2 * (q - IK.center) / (IK.upper - IK.lower)
-        dq = rate * -offset # proportional term (implied quadratic cost)
+        dq = rate * -offset  # proportional term (implied quadratic cost)
 
         return dq
 
@@ -227,7 +229,7 @@ DO: implement me!
             rollout.append(q)
 
             # Primary Task - Achieve End Effector Pose
-            dq_ik = self.end_effector_task(q,target)
+            dq_ik = self.end_effector_task(q, target)
             # Secondary Task - Center Joints
             dq_center = self.joint_centering_task(q)
 
@@ -235,21 +237,23 @@ DO: implement me!
 
             # Task Prioritization
             J = calcJacobian(q)
-            additional_freedom = null_space(J).reshape((7,)) # return orthonormal basis
-            approximated_dq_center = np.dot(additional_freedom, dq_center)*additional_freedom
-            dq = dq_ik + approximated_dq_center # TODO: implement me!
+            additional_freedom = null_space(J).reshape((7,))  # return orthonormal basis
+            approximated_dq_center = np.dot(additional_freedom, dq_center) * additional_freedom
+            dq = dq_ik + approximated_dq_center  # TODO: implement me!
 
             # Termination Conditions
-            if len(rollout) == self.max_steps or np.linalg.norm(dq) < self.min_step_size: # TODO: check termination conditions
-            # if True:
-                break # exit the while loop if conditions are met!
+            if len(rollout) == self.max_steps or np.linalg.norm(
+                    dq) < self.min_step_size:  # TODO: check termination conditions
+                # if True:
+                break  # exit the while loop if conditions are met!
 
             ## END STUDENT CODE
 
             q = q + dq
 
-        success = self.is_valid_solution(q,target)
+        success = self.is_valid_solution(q, target)
         return q, success, rollout
+
 
 ################################
 ## Simple Testing Environment ##
@@ -257,27 +261,49 @@ DO: implement me!
 
 if __name__ == "__main__":
 
-    np.set_printoptions(suppress=True,precision=5)
+    np.set_printoptions(suppress=True, precision=5)
 
     ik = IK()
-
+    fk = FK()
     # matches figure in the handout
-    seed = np.array([0,0,0,-pi/2,0,pi/2,pi/4])
+    # seed = np.array([0, 0, 0, -pi / 2, 0, pi / 2, pi / 4])
+    seed = np.array([-0.01779206 ,-0.76012354  ,0.01978261, -2.34205014,  0.02984053  ,1.54119353,
+      0.75344866])
+    # seed = np.array([ 1.55432 , 0.93489,  0.03942 ,-0.70566, -0.03179,  1.64015 , 2.36535])
+    # _, T_seed = fk.forward(seed)
+    # print(T_seed)
 
-    target = np.array([
-        [0,-1,0,0.3],
-        [-1,0,0,0],
-        [0,0,-1,.5],
-        [0,0,0, 1],
-    ])
+    # target = np.array([
+    #     [0,-1,0,0.3],
+    #     [-1,0,0,0],
+    #     [0,0,-1,.5],
+    #     [0,0,0, 1],
+    # ])
+    # target = np.array([[1, 0, 0, 0],
+    #                    [0, -1, 0, 0.15],
+    #                    [0, 0, -1, 0.25],
+    #                    [0, 0, 0, 1]])
+    target =np.array([[1, 0, 0, 0.56], [0, -1, 0, 0.17], [0, 0, -1, 0.2+0.4], [0, 0, 0, 1]])
 
     q, success, rollout = ik.inverse(target, seed)
 
     for i, q in enumerate(rollout):
         joints, pose = ik.fk.forward(q)
-        d, ang = IK.distance_and_angle(target,pose)
-        print('iteration:',i,' q =',q, ' d={d:3.4f}  ang={ang:3.3f}'.format(d=d,ang=ang))
+        d, ang = IK.distance_and_angle(target, pose)
+        print('iteration:', i, ' q =', q, ' d={d:3.4f}  ang={ang:3.3f}'.format(d=d, ang=ang))
 
-    print("Success: ",success)
-    print("Solution: ",q)
+    print("Success: ", success)
+    print("Solution: ", q)
     print("Iterations:", len(rollout))
+    _, T_tar = fk.forward(q)
+    print(T_tar)
+
+    # target = np.array([[0, 1, 0, 0.15],
+    #                    [1, 0, 0, 0.82],
+    #                    [0, 0, -1, 0.25],
+    #                    [0, 0, 0, 1]])
+    # q, success, rollout = ik.inverse(target, q)
+    # print("Success: ", success)
+    # print("Solution: ", q)
+    # _, T_tar = fk.forward(q)
+    # print(T_tar)
