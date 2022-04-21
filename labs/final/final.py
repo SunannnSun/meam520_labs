@@ -13,6 +13,7 @@ from core.interfaces import ObjectDetector
 from core.utils import time_in_seconds
 
 # The library you implemented over the course of this semester!
+from franka_ros_interface.franka_interface.src.franka_interface import arm
 from lib.calculateFK import FK
 from lib.calcJacobian import FK
 from lib.solveIK import IK
@@ -53,7 +54,7 @@ def pose_to_joint(block_pose):
     return q, success
 
 
-def generate_grasp_and_stack(tag_name, block_pose, no_blocks, margin=0.03):
+def generate_grasp_and_stack_red(tag_name, block_pose, no_blocks, margin=0.03):
     print(tag_name)
     """
     Generate grasping and stacking configuration given the tag_name and pose
@@ -116,20 +117,21 @@ def generate_grasp_and_stack(tag_name, block_pose, no_blocks, margin=0.03):
         grasp_down_pose = tag_pose.copy()
         grasp_down_pose[2, -1] = grasp_down_pose[2, -1] - 0.025
         grasp_down_joint, _ = pose_to_joint(grasp_down_pose)
-
+        if no_blocks == 0:
+            margin = 0.03
         stack_down_pose = np.array([[0, -1, 0, 0.56],
                                     [0, 0, -1, 0.17],
                                     [1, 0, 0, 0.2 + no_blocks * 0.05 + 0.025 + margin],
                                     [0, 0, 0, 1]])
         stack_down_joint, _ = pose_to_joint(stack_down_pose)
-        if flip_flag:  # fix the degenerate case
-            stack_down_joint[-1] -= 3.141
+        # if flip_flag:  # fix the degenerate case
+        #     stack_down_joint[-1] -= 3.141
         stack_up_joint = stack_down_joint.copy()  # stack_up_joint unnecessary for this particular case
         print("Grasp Stack joints Found!")
 
         tag_pose_new = np.array([[0, -1, 0, 0.56],
                                  [0, 0, -1, 0.17],
-                                 [1, 0, 0, 0.2 + (no_blocks+1) * 0.05],
+                                 [1, 0, 0, 0.2 + (no_blocks + 1) * 0.05],
                                  [0, 0, 0, 1]]) @ np.array([[0, 0, 1, 0],
                                                             [0, 1, 0, 0],
                                                             [-1, 0, 0, 0],
@@ -146,7 +148,8 @@ def generate_grasp_and_stack(tag_name, block_pose, no_blocks, margin=0.03):
         grasp_down_pose_new = tag_pose_new.copy()
         grasp_down_pose_new[2, -1] = grasp_down_pose_new[2, -1] - 0.025
         grasp_down_joint_new, _ = pose_to_joint(grasp_down_pose_new)
-
+        if no_blocks == 0:
+            margin = 0.03
         stack_down_pose_new = np.array([[0, -1, 0, 0.56],
                                         [0, 0, -1, 0.17],
                                         [1, 0, 0, 0.2 + no_blocks * 0.05 + 0.025 + margin],
@@ -178,18 +181,168 @@ def generate_grasp_and_stack(tag_name, block_pose, no_blocks, margin=0.03):
         grasp_down_pose = tag_pose.copy()
         grasp_down_pose[2, -1] = grasp_down_pose[2, -1] - 0.025
         grasp_down_joint, _ = pose_to_joint(grasp_down_pose)
-
+        if no_blocks == 0:
+            margin = 0.03
         stack_down_pose = np.array([[0, -1, 0, 0.56],
                                     [0, 0, -1, 0.17],
                                     [1, 0, 0, 0.2 + no_blocks * 0.05 + 0.025 + margin],
                                     [0, 0, 0, 1]])
         stack_down_joint, _ = pose_to_joint(stack_down_pose)
         if flip_flag:  # fix the degenerate case
-            stack_down_joint[-1] -= 3.141
+            if stack_down_joint[-1] >= 0.25:
+                stack_down_joint[-1] -= 3.141
+            elif stack_down_joint[-1] <= -0.25:
+                stack_down_joint[-1] += 3.141
+            else:
+                print("cant solve")
         stack_up_joint = stack_down_joint.copy()  # stack_up_joint unnecessary for this particular case
         print("Grasp Stack joints Found!")
         return [grasp_up_joint, grasp_down_joint, stack_up_joint, stack_down_joint]
 
+def generate_grasp_and_stack_blue(tag_name, block_pose, no_blocks, margin=0.015):
+    print(tag_name)
+    """
+    Generate grasping and stacking configuration given the tag_name and pose
+
+    INPUTS:
+    tag_name - essentially determines where the white side is located
+    block_pose - the tag pose on the top side to be accurate
+
+    OUTPUTS:
+    A list of four elements[grasp_up, grasp_down, stack_up, stack_down]
+    """
+    flip_flag = False
+    if tag_name == "tag6":
+        tag_pose = block_pose.copy()
+        tag_pose = tag_pose @ np.array([[-1, 0, 0, 0],
+                                        [0, 1, 0, 0],
+                                        [0, 0, -1, 0],
+                                        [0, 0, 0, 1]])
+        while not pose_to_joint(tag_pose)[1]:  # rare cases, though in this scenario no additional change is needed
+            tag_pose = tag_pose @ np.array([[-1, 0, 0, 0], [0, -1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
+        grasp_up_pose = tag_pose.copy()
+        grasp_up_pose[2, -1] = grasp_up_pose[2, -1] + 0.1
+        grasp_up_joint, _ = pose_to_joint(grasp_up_pose)
+
+        grasp_down_pose = tag_pose.copy()
+        grasp_down_pose[2, -1] = grasp_down_pose[2, -1] - 0.025
+        grasp_down_joint, _ = pose_to_joint(grasp_down_pose)
+
+        stack_up_pose = np.array([[1, 0, 0, 0.56],
+                                  [0, -1, 0, -0.17],
+                                  [0, 0, -1, 0.2 + 0.4],
+                                  [0, 0, 0, 1]])
+        stack_up_joint, _ = pose_to_joint(stack_up_pose)
+
+        stack_down_pose = np.array([[1, 0, 0, 0.56],
+                                    [0, -1, 0, -0.17],
+                                    [0, 0, -1, 0.2 + no_blocks * 0.05 + 0.025 + margin],
+                                    [0, 0, 0, 1]])
+        stack_down_joint, _ = pose_to_joint(stack_down_pose)
+        print("Grasp Stack joints Found!")
+        return [grasp_up_joint, grasp_down_joint, stack_up_joint, stack_down_joint]
+
+    if tag_name == "tag5":
+        tag_pose = block_pose.copy()
+        tag_pose = tag_pose @ np.array([[-1, 0, 0, 0],
+                                        [0, 1, 0, 0],
+                                        [0, 0, -1, 0],
+                                        [0, 0, 0, 1]])
+        while not pose_to_joint(tag_pose)[1]:
+            flip_flag = True
+            print("Degenerate!")
+            tag_pose = tag_pose @ np.array([[-1, 0, 0, 0],
+                                            [0, -1, 0, 0],
+                                            [0, 0, 1, 0],
+                                            [0, 0, 0, 1]])
+        grasp_up_pose = tag_pose.copy()
+        grasp_up_pose[2, -1] = grasp_up_pose[2, -1] + 0.1
+        grasp_up_joint, _ = pose_to_joint(grasp_up_pose)
+
+        grasp_down_pose = tag_pose.copy()
+        grasp_down_pose[2, -1] = grasp_down_pose[2, -1] - 0.025
+        grasp_down_joint, _ = pose_to_joint(grasp_down_pose)
+        if no_blocks == 0:
+            margin = 0.03
+        stack_down_pose = np.array([[0, 1, 0, 0.56],
+                                    [0, 0, 1, -0.17],
+                                    [1, 0, 0, 0.2 + no_blocks * 0.05 + 0.025 + margin],
+                                    [0, 0, 0, 1]])
+        stack_down_joint, _ = pose_to_joint(stack_down_pose)
+        # if flip_flag:  # fix the degenerate case
+        #     stack_down_joint[-1] -= 3.141
+        stack_up_joint = stack_down_joint.copy()  # stack_up_joint unnecessary for this particular case
+        print("Grasp Stack joints Found!")
+
+        tag_pose_new = np.array([[0, 1, 0, 0.56],
+                                 [0, 0, 1, -0.17],
+                                 [1, 0, 0, 0.2 + (no_blocks + 1) * 0.05],
+                                 [0, 0, 0, 1]]) @ np.array([[0, 0, 1, 0],
+                                                            [0, 1, 0, 0],
+                                                            [-1, 0, 0, 0],
+                                                            [0, 0, 0, 1]])
+        tag_pose_new = tag_pose_new @ np.array([[-1, 0, 0, 0],
+                                                [0, 1, 0, 0],
+                                                [0, 0, -1, 0],
+                                                [0, 0, 0, 1]])
+
+        grasp_up_pose_new = tag_pose_new.copy()
+        grasp_up_pose_new[2, -1] = grasp_up_pose_new[2, -1] + 0.1
+        grasp_up_joint_new, _ = pose_to_joint(grasp_up_pose_new)
+
+        grasp_down_pose_new = tag_pose_new.copy()
+        grasp_down_pose_new[2, -1] = grasp_down_pose_new[2, -1] - 0.025
+        grasp_down_joint_new, _ = pose_to_joint(grasp_down_pose_new)
+        if no_blocks == 0:
+            margin = 0.03
+        stack_down_pose_new = np.array([[0, 1, 0, 0.56],
+                                        [0, 0, 1, -0.17],
+                                        [1, 0, 0, 0.2 + no_blocks * 0.05 + 0.025 + margin],
+                                        [0, 0, 0, 1]])
+        stack_down_joint_new, _ = pose_to_joint(stack_down_pose_new)
+
+        return [grasp_up_joint, grasp_down_joint, stack_up_joint, stack_down_joint, grasp_up_joint_new,
+                grasp_down_joint_new, stack_down_joint_new, stack_down_joint_new]
+    else:
+        tag_pose = block_pose.copy()
+        tag_pose = tag_pose @ np.array([[-1, 0, 0, 0],
+                                        [0, 1, 0, 0],
+                                        [0, 0, -1, 0],
+                                        [0, 0, 0, 1]]) @ np.array([[0, -1, 0, 0],
+                                                                   [1, 0, 0, 0],
+                                                                   [0, 0, 1, 0],
+                                                                   [0, 0, 0, 1]])
+        while not pose_to_joint(tag_pose)[1]:
+            flip_flag = True
+            print("Degenerate!")
+            tag_pose = tag_pose @ np.array([[-1, 0, 0, 0],
+                                            [0, -1, 0, 0],
+                                            [0, 0, 1, 0],
+                                            [0, 0, 0, 1]])
+        grasp_up_pose = tag_pose.copy()
+        grasp_up_pose[2, -1] = grasp_up_pose[2, -1] + 0.1
+        grasp_up_joint, _ = pose_to_joint(grasp_up_pose)
+
+        grasp_down_pose = tag_pose.copy()
+        grasp_down_pose[2, -1] = grasp_down_pose[2, -1] - 0.025
+        grasp_down_joint, _ = pose_to_joint(grasp_down_pose)
+        if no_blocks == 0:
+            margin = 0.03
+        stack_down_pose = np.array([[0, 1, 0, 0.56],
+                                    [0, 0, 1, -0.17],
+                                    [1, 0, 0, 0.2 + no_blocks * 0.05 + 0.025 + margin],
+                                    [0, 0, 0, 1]])
+        stack_down_joint, _ = pose_to_joint(stack_down_pose)
+        if flip_flag:  # fix the degenerate case
+            if stack_down_joint[-1] >= 0.25:
+                stack_down_joint[-1] -= 3.141
+            elif stack_down_joint[-1] <= -0.25:
+                stack_down_joint[-1] += 3.141
+            else:
+                print("cant solve")
+        stack_up_joint = stack_down_joint.copy()  # stack_up_joint unnecessary for this particular case
+        print("Grasp Stack joints Found!")
+        return [grasp_up_joint, grasp_down_joint, stack_up_joint, stack_down_joint]
 
 def execute_grasp_and_stack(joint_list):
     print("Move to grasp_up")
@@ -208,6 +361,8 @@ def execute_grasp_and_stack(joint_list):
     arm.safe_move_to_position(joint_list[3])
     print("Open the gripper")
     arm.exec_gripper_cmd(7 * 10 ** -2, 10)
+    print("Move to stack_up")
+    arm.safe_move_to_position(joint_list[2])
     print("Move to neutral")
     arm.safe_move_to_position(arm.neutral_position())
     if len(joint_list) == 8:
@@ -257,6 +412,8 @@ if __name__ == "__main__":
     fk = FK()
     arm.safe_move_to_position(arm.neutral_position())
     arm.exec_gripper_cmd(7 * 10 ** -2, 10)
+
+    print(arm.neutral_position())
     print(arm.get_gripper_state())
 
     print("\n****************")
@@ -282,21 +439,41 @@ if __name__ == "__main__":
     tag_list = detector.get_detections()
     for name, pose in tag_list[1: -1]:
         T_b_r = T_c_r @ pose
-        if T_b_r[1, -1] <= 0:
-            if name == "tag6":
-                white_top.append((name, T_b_r))
-            elif name == "tag5":
-                white_bot.append((name, T_b_r))
-            else:
-                white_sides.append((name, T_b_r))
+        if team == 'blue':
+            if T_b_r[1, -1] >= 0:
+                if name == "tag6":
+                    white_top.append((name, T_b_r))
+                elif name == "tag5":
+                    white_bot.append((name, T_b_r))
+                else:
+                    white_sides.append((name, T_b_r))
+        else:
+            if T_b_r[1, -1] <= 0:
+                if name == "tag6":
+                    white_top.append((name, T_b_r))
+                elif name == "tag5":
+                    white_bot.append((name, T_b_r))
+                else:
+                    white_sides.append((name, T_b_r))
 
     # block_list = white_top + white_sides + white_bot
     # block_list = white_sides + white_top + white_bot
     block_list = white_bot + white_sides + white_top
+    # block_list = white_bot
     for i, block in enumerate(block_list):
-        motion_list = generate_grasp_and_stack(block[0], block[1], i)
+        if team == 'blue':
+            motion_list = generate_grasp_and_stack_blue(block[0], block[1], i)
+        else:
+            motion_list = generate_grasp_and_stack_red(block[0], block[1], i)
         execute_grasp_and_stack(motion_list)
-
+    # arm.safe_move_to_position(np.array([-0.88825,  0.47982 , 0.31012, -1.23088,  1.34841,  0.98129, -0.92867]))
+    # hover_pose = np.array([[1, 0, 0, 0],
+    #                        [0, -1, 0, 0.978 - 0.305 + 0.025],
+    #                        [0, 0, -1, 0.3],
+    #                        [0, 0, 0, 1]])
+    # hover_joint, _ = pose_to_joint(hover_pose)
+    # arm.safe_move_to_position(hover_joint)
+    # arm.safe_move_to_position(np.array([-0.72447, -1.04341, 1.86912, -1.47874, 1.00503, 1.77894, 1.86558]))
     # for i, block in enumerate(white_sides):
     #     do_solution_exist(block[1])
     #
