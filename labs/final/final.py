@@ -13,12 +13,11 @@ from core.interfaces import ObjectDetector
 from core.utils import time_in_seconds
 
 # The library you implemented over the course of this semester!
-from franka_ros_interface.franka_interface.src.franka_interface import arm
 from lib.calculateFK import FK
 from lib.calcJacobian import FK
 from lib.solveIK import IK
-from lib.rrt import rrt
-from lib.loadmap import loadmap
+# from lib.rrt import rrt
+# from lib.loadmap import loadmap
 
 
 def wait_for_seconds(time):
@@ -33,7 +32,11 @@ def wait_for_seconds(time):
 
 def camera_to_robot():
     # Extract homogeneous transformation from the tag 0(t0) to the camera(c)
-    T_t0_c = detector.detections[0][1]
+    all_tag_list = detector.get_detections()
+
+    for tag_name, tag_pose in all_tag_list:
+        if tag_name == 'tag0':
+            T_t0_c = pose
 
     # Extract the relative rotation from the tag 0 to the camera and the position of the tag 0 w.r.t the camera
     R_t0_c = T_t0_c[0:3, 0:3]
@@ -375,7 +378,9 @@ def execute_grasp_and_stack(joint_list):
     arm.exec_gripper_cmd(5.2 * 10 ** -2, 10)
     wait_for_seconds(0.5)
     print("Open the gripper")
-    arm.exec_gripper_cmd(8 * 10 ** -2, 10)
+    arm.open_gripper()
+
+    # arm.exec_gripper_cmd(8 * 10 ** -2, 10)
     print("Move to stack_up")
     arm.safe_move_to_position(joint_list[2])
     print("Move to neutral")
@@ -399,7 +404,9 @@ def execute_grasp_and_stack(joint_list):
         arm.exec_gripper_cmd(5.2 * 10 ** -2, 10)
         wait_for_seconds(1)
         print("Open the gripper")
-        arm.exec_gripper_cmd(8 * 10 ** -2, 10)
+        arm.open_gripper()
+
+        # arm.exec_gripper_cmd(8 * 10 ** -2, 10)
         print("Move to neutral")
         arm.safe_move_to_position(arm.neutral_position())
     return None
@@ -429,8 +436,9 @@ if __name__ == "__main__":
     ik = IK()
     fk = FK()
     arm.safe_move_to_position(arm.neutral_position())
-    arm.exec_gripper_cmd(8 * 10 ** -2, 10)
-
+    # arm.exec_gripper_cmd(7 * 10 ** -2, 10)
+    arm.open_gripper()
+    wait_for_seconds(5)
     print(arm.neutral_position())
 
     print("\n****************")
@@ -445,7 +453,7 @@ if __name__ == "__main__":
     # STUDENT CODE HERE
 
     T_c_r = camera_to_robot()
-    T_t0_c = detector.detections[0][1]
+    # T_t0_c = detector.detections[0][1]
 
     # Detect some tags...
     print(arm.get_gripper_state())
@@ -455,11 +463,16 @@ if __name__ == "__main__":
     white_sides = []
     block_list = []
     tag_list = detector.get_detections()
-    for name, pose in tag_list[1: -1]:
+
+    for name, pose in tag_list:
         T_b_r = T_c_r @ pose
+        # print(name)
+        # print(T_c_r)
         if team == 'blue':
             if T_b_r[1, -1] >= 0:
-                if name == "tag6":
+                if name == 'tag0':
+                    pass
+                elif name == "tag6":
                     white_top.append((name, T_b_r))
                 elif name == "tag5":
                     white_bot.append((name, T_b_r))
@@ -467,7 +480,9 @@ if __name__ == "__main__":
                     white_sides.append((name, T_b_r))
         else:
             if T_b_r[1, -1] <= 0:
-                if name == "tag6":
+                if name == 'tag0':
+                    pass
+                elif name == "tag6":
                     white_top.append((name, T_b_r))
                 elif name == "tag5":
                     white_bot.append((name, T_b_r))
@@ -477,7 +492,7 @@ if __name__ == "__main__":
     # block_list = white_top + white_sides + white_bot
     # block_list = white_sides + white_top + white_bot
     block_list = white_bot + white_sides + white_top
-    # block_list = white_bot
+    # block_list = white_top
     for i, block in enumerate(block_list):
         if team == 'blue':
             motion_list = generate_grasp_and_stack_blue(block[0], block[1], i)
