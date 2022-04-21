@@ -21,6 +21,16 @@ from lib.rrt import rrt
 from lib.loadmap import loadmap
 
 
+def wait_for_seconds(time):
+    t1 = time_in_seconds()
+    # print(t1)
+    while time_in_seconds() - t1 <= time:
+        pass
+    # print(time_in_seconds())
+    # print(time_in_seconds() - t1)
+    return None
+
+
 def camera_to_robot():
     # Extract homogeneous transformation from the tag 0(t0) to the camera(c)
     T_t0_c = detector.detections[0][1]
@@ -118,7 +128,7 @@ def generate_grasp_and_stack_red(tag_name, block_pose, no_blocks, margin=0.02):
         grasp_down_pose[2, -1] = grasp_down_pose[2, -1] - 0.025
         grasp_down_joint, _ = pose_to_joint(grasp_down_pose)
         if no_blocks == 0:
-            margin = 0.03
+            margin = 0.028
         stack_down_pose = np.array([[0, -1, 0, 0.56],
                                     [0, 0, -1, 0.17],
                                     [1, 0, 0, 0.2 + no_blocks * 0.05 + 0.025 + margin],
@@ -149,7 +159,7 @@ def generate_grasp_and_stack_red(tag_name, block_pose, no_blocks, margin=0.02):
         grasp_down_pose_new[2, -1] = grasp_down_pose_new[2, -1] - 0.025
         grasp_down_joint_new, _ = pose_to_joint(grasp_down_pose_new)
         if no_blocks == 0:
-            margin = 0.03
+            margin = 0.028
         stack_down_pose_new = np.array([[0, -1, 0, 0.56],
                                         [0, 0, -1, 0.17],
                                         [1, 0, 0, 0.2 + no_blocks * 0.05 + 0.025 + margin],
@@ -182,7 +192,7 @@ def generate_grasp_and_stack_red(tag_name, block_pose, no_blocks, margin=0.02):
         grasp_down_pose[2, -1] = grasp_down_pose[2, -1] - 0.025
         grasp_down_joint, _ = pose_to_joint(grasp_down_pose)
         if no_blocks == 0:
-            margin = 0.03
+            margin = 0.028
         stack_down_pose = np.array([[0, -1, 0, 0.56],
                                     [0, 0, -1, 0.17],
                                     [1, 0, 0, 0.2 + no_blocks * 0.05 + 0.025 + margin],
@@ -264,7 +274,7 @@ def generate_grasp_and_stack_blue(tag_name, block_pose, no_blocks, margin=0.02):
         grasp_down_pose[2, -1] = grasp_down_pose[2, -1] - 0.025
         grasp_down_joint, _ = pose_to_joint(grasp_down_pose)
         if no_blocks == 0:
-            margin = 0.03
+            margin = 0.028
         stack_down_pose = np.array([[0, 1, 0, 0.56],
                                     [0, 0, 1, -0.17],
                                     [1, 0, 0, 0.2 + no_blocks * 0.05 + 0.025 + margin],
@@ -295,7 +305,7 @@ def generate_grasp_and_stack_blue(tag_name, block_pose, no_blocks, margin=0.02):
         grasp_down_pose_new[2, -1] = grasp_down_pose_new[2, -1] - 0.025
         grasp_down_joint_new, _ = pose_to_joint(grasp_down_pose_new)
         if no_blocks == 0:
-            margin = 0.03
+            margin = 0.028
         stack_down_pose_new = np.array([[0, 1, 0, 0.56],
                                         [0, 0, 1, -0.17],
                                         [1, 0, 0, 0.2 + no_blocks * 0.05 + 0.025 + margin],
@@ -328,7 +338,7 @@ def generate_grasp_and_stack_blue(tag_name, block_pose, no_blocks, margin=0.02):
         grasp_down_pose[2, -1] = grasp_down_pose[2, -1] - 0.025
         grasp_down_joint, _ = pose_to_joint(grasp_down_pose)
         if no_blocks == 0:
-            margin = 0.03
+            margin = 0.028
         stack_down_pose = np.array([[0, 1, 0, 0.56],
                                     [0, 0, 1, -0.17],
                                     [1, 0, 0, 0.2 + no_blocks * 0.05 + 0.025 + margin],
@@ -345,6 +355,7 @@ def generate_grasp_and_stack_blue(tag_name, block_pose, no_blocks, margin=0.02):
         print("Grasp Stack joints Found!")
         return [grasp_up_joint, grasp_down_joint, stack_up_joint, stack_down_joint]
 
+
 def execute_grasp_and_stack(joint_list):
     print("Move to grasp_up")
     arm.safe_move_to_position(joint_list[0])
@@ -360,6 +371,9 @@ def execute_grasp_and_stack(joint_list):
     arm.safe_move_to_position(joint_list[2])
     print("Move to stack_down")
     arm.safe_move_to_position(joint_list[3])
+    print("Open the gripper")
+    arm.exec_gripper_cmd(5.2 * 10 ** -2, 10)
+    wait_for_seconds(0.5)
     print("Open the gripper")
     arm.exec_gripper_cmd(8 * 10 ** -2, 10)
     print("Move to stack_up")
@@ -381,6 +395,9 @@ def execute_grasp_and_stack(joint_list):
         arm.safe_move_to_position(joint_list[6])
         print("Move to stack_down_new")
         arm.safe_move_to_position(joint_list[7])
+        print("Open the gripper")
+        arm.exec_gripper_cmd(5.2 * 10 ** -2, 10)
+        wait_for_seconds(1)
         print("Open the gripper")
         arm.exec_gripper_cmd(8 * 10 ** -2, 10)
         print("Move to neutral")
@@ -461,7 +478,7 @@ if __name__ == "__main__":
     # block_list = white_sides + white_top + white_bot
     block_list = white_bot + white_sides + white_top
     # block_list = white_bot
-    for i, block in enumerate(block_list[2:4]):
+    for i, block in enumerate(block_list):
         if team == 'blue':
             motion_list = generate_grasp_and_stack_blue(block[0], block[1], i)
         else:
