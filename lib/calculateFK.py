@@ -148,7 +148,8 @@ if __name__ == "__main__":
     fk = FK()
 
     # matches figure in the handout
-    q = np.array([0,0,0,-pi/2,0,pi/2,pi/4])
+    q = np.array([-1.58403719, -1.69129747,  1.62704752 ,-1.58711318,  0.1196279,   1.60697527,
+  2.41010091])
 
     joint_positions, T0e = fk.forward(q)
 

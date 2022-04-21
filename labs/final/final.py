@@ -97,7 +97,64 @@ def generate_grasp_and_stack(tag_name, block_pose, no_blocks, margin=0.03):
         return [grasp_up_joint, grasp_down_joint, stack_up_joint, stack_down_joint]
 
     if tag_name == "tag5":
-        pass
+        tag_pose = block_pose.copy()
+        tag_pose = tag_pose @ np.array([[-1, 0, 0, 0],
+                                        [0, 1, 0, 0],
+                                        [0, 0, -1, 0],
+                                        [0, 0, 0, 1]])
+        while not pose_to_joint(tag_pose)[1]:
+            flip_flag = True
+            print("Degenerate!")
+            tag_pose = tag_pose @ np.array([[-1, 0, 0, 0],
+                                            [0, -1, 0, 0],
+                                            [0, 0, 1, 0],
+                                            [0, 0, 0, 1]])
+        grasp_up_pose = tag_pose.copy()
+        grasp_up_pose[2, -1] = grasp_up_pose[2, -1] + 0.1
+        grasp_up_joint, _ = pose_to_joint(grasp_up_pose)
+
+        grasp_down_pose = tag_pose.copy()
+        grasp_down_pose[2, -1] = grasp_down_pose[2, -1] - 0.025
+        grasp_down_joint, _ = pose_to_joint(grasp_down_pose)
+
+        stack_down_pose = np.array([[0, -1, 0, 0.56],
+                                    [0, 0, -1, 0.17],
+                                    [1, 0, 0, 0.2 + no_blocks * 0.05 + 0.025 + margin],
+                                    [0, 0, 0, 1]])
+        stack_down_joint, _ = pose_to_joint(stack_down_pose)
+        if flip_flag:  # fix the degenerate case
+            stack_down_joint[-1] -= 3.141
+        stack_up_joint = stack_down_joint.copy()  # stack_up_joint unnecessary for this particular case
+        print("Grasp Stack joints Found!")
+
+        tag_pose_new = np.array([[0, -1, 0, 0.56],
+                                 [0, 0, -1, 0.17],
+                                 [1, 0, 0, 0.2 + (no_blocks+1) * 0.05],
+                                 [0, 0, 0, 1]]) @ np.array([[0, 0, 1, 0],
+                                                            [0, 1, 0, 0],
+                                                            [-1, 0, 0, 0],
+                                                            [0, 0, 0, 1]])
+        tag_pose_new = tag_pose_new @ np.array([[-1, 0, 0, 0],
+                                                [0, 1, 0, 0],
+                                                [0, 0, -1, 0],
+                                                [0, 0, 0, 1]])
+
+        grasp_up_pose_new = tag_pose_new.copy()
+        grasp_up_pose_new[2, -1] = grasp_up_pose_new[2, -1] + 0.1
+        grasp_up_joint_new, _ = pose_to_joint(grasp_up_pose_new)
+
+        grasp_down_pose_new = tag_pose_new.copy()
+        grasp_down_pose_new[2, -1] = grasp_down_pose_new[2, -1] - 0.025
+        grasp_down_joint_new, _ = pose_to_joint(grasp_down_pose_new)
+
+        stack_down_pose_new = np.array([[0, -1, 0, 0.56],
+                                        [0, 0, -1, 0.17],
+                                        [1, 0, 0, 0.2 + no_blocks * 0.05 + 0.025 + margin],
+                                        [0, 0, 0, 1]])
+        stack_down_joint_new, _ = pose_to_joint(stack_down_pose_new)
+
+        return [grasp_up_joint, grasp_down_joint, stack_up_joint, stack_down_joint, grasp_up_joint_new,
+                grasp_down_joint_new, stack_down_joint_new, stack_down_joint_new]
     else:
         tag_pose = block_pose.copy()
         tag_pose = tag_pose @ np.array([[-1, 0, 0, 0],
@@ -140,7 +197,7 @@ def execute_grasp_and_stack(joint_list):
     print("Move to grasping position")
     arm.safe_move_to_position(joint_list[1])
     print("Close the gripper")
-    arm.exec_gripper_cmd(4.5 * 10 ** -2, 5)
+    arm.exec_gripper_cmd(4.5 * 10 ** -2, 10)
     print("Move to above the block")
     arm.safe_move_to_position(joint_list[0])
     print("Move to the neutral position")
@@ -150,9 +207,28 @@ def execute_grasp_and_stack(joint_list):
     print("Move to place down the block")
     arm.safe_move_to_position(joint_list[3])
     print("Release the block")
-    arm.exec_gripper_cmd(6 * 10 ** -2, 5)
+    arm.exec_gripper_cmd(7 * 10 ** -2, 10)
     print("Move to the neutral position")
     arm.safe_move_to_position(arm.neutral_position())
+    if len(joint_list) == 8:
+        print("Move to above the block")
+        arm.safe_move_to_position(joint_list[4])
+        print("Move to grasping position")
+        arm.safe_move_to_position(joint_list[5])
+        print("Close the gripper")
+        arm.exec_gripper_cmd(4.5 * 10 ** -2, 10)
+        print("Move to above the block")
+        arm.safe_move_to_position(joint_list[4])
+        print("Move to the neutral position")
+        arm.safe_move_to_position(arm.neutral_position())
+        print("Move to above the stacking tower")
+        arm.safe_move_to_position(joint_list[6])
+        print("Move to place down the block")
+        arm.safe_move_to_position(joint_list[7])
+        print("Release the block")
+        arm.exec_gripper_cmd(7 * 10 ** -2, 10)
+        print("Move to the neutral position")
+        arm.safe_move_to_position(arm.neutral_position())
     return None
 
 
@@ -180,7 +256,7 @@ if __name__ == "__main__":
     ik = IK()
     fk = FK()
     arm.safe_move_to_position(arm.neutral_position())
-    arm.exec_gripper_cmd(6, 4)
+    arm.exec_gripper_cmd(7 * 10 ** -2, 10)
     print("neutral position", arm.neutral_position())
 
     print("\n****************")
@@ -215,7 +291,8 @@ if __name__ == "__main__":
                 white_sides.append((name, T_b_r))
 
     # block_list = white_top + white_sides + white_bot
-    block_list = white_sides + white_top + white_bot
+    # block_list = white_sides + white_top + white_bot
+    block_list = white_bot + white_sides + white_top
     for i, block in enumerate(block_list):
         motion_list = generate_grasp_and_stack(block[0], block[1], i)
         execute_grasp_and_stack(motion_list)
@@ -225,7 +302,7 @@ if __name__ == "__main__":
     #
     # do_solution_exist(white_sides[2][1])
     # arm.exec_gripper_cmd(4*10**-2, 4)
-    # a = white_sides[0]
+    # a = white_bot[0]
     # motion_list = generate_grasp_and_stack(a[0], a[1], 0)
     # execute_grasp_and_stack(motion_list)
     # END STUDENT CODE
