@@ -54,7 +54,7 @@ def pose_to_joint(block_pose):
     return q, success
 
 
-def generate_grasp_and_stack_red(tag_name, block_pose, no_blocks, margin=0.03):
+def generate_grasp_and_stack_red(tag_name, block_pose, no_blocks, margin=0.02):
     print(tag_name)
     """
     Generate grasping and stacking configuration given the tag_name and pose
@@ -199,7 +199,8 @@ def generate_grasp_and_stack_red(tag_name, block_pose, no_blocks, margin=0.03):
         print("Grasp Stack joints Found!")
         return [grasp_up_joint, grasp_down_joint, stack_up_joint, stack_down_joint]
 
-def generate_grasp_and_stack_blue(tag_name, block_pose, no_blocks, margin=0.015):
+
+def generate_grasp_and_stack_blue(tag_name, block_pose, no_blocks, margin=0.02):
     print(tag_name)
     """
     Generate grasping and stacking configuration given the tag_name and pose
@@ -360,7 +361,7 @@ def execute_grasp_and_stack(joint_list):
     print("Move to stack_down")
     arm.safe_move_to_position(joint_list[3])
     print("Open the gripper")
-    arm.exec_gripper_cmd(7 * 10 ** -2, 10)
+    arm.exec_gripper_cmd(8 * 10 ** -2, 10)
     print("Move to stack_up")
     arm.safe_move_to_position(joint_list[2])
     print("Move to neutral")
@@ -381,7 +382,7 @@ def execute_grasp_and_stack(joint_list):
         print("Move to stack_down_new")
         arm.safe_move_to_position(joint_list[7])
         print("Open the gripper")
-        arm.exec_gripper_cmd(7 * 10 ** -2, 10)
+        arm.exec_gripper_cmd(8 * 10 ** -2, 10)
         print("Move to neutral")
         arm.safe_move_to_position(arm.neutral_position())
     return None
@@ -411,10 +412,9 @@ if __name__ == "__main__":
     ik = IK()
     fk = FK()
     arm.safe_move_to_position(arm.neutral_position())
-    arm.exec_gripper_cmd(7 * 10 ** -2, 10)
+    arm.exec_gripper_cmd(8 * 10 ** -2, 10)
 
     print(arm.neutral_position())
-    print(arm.get_gripper_state())
 
     print("\n****************")
     if team == 'blue':
@@ -431,6 +431,7 @@ if __name__ == "__main__":
     T_t0_c = detector.detections[0][1]
 
     # Detect some tags...
+    print(arm.get_gripper_state())
 
     white_top = []
     white_bot = []
@@ -460,7 +461,7 @@ if __name__ == "__main__":
     # block_list = white_sides + white_top + white_bot
     block_list = white_bot + white_sides + white_top
     # block_list = white_bot
-    for i, block in enumerate(block_list):
+    for i, block in enumerate(block_list[2:4]):
         if team == 'blue':
             motion_list = generate_grasp_and_stack_blue(block[0], block[1], i)
         else:
