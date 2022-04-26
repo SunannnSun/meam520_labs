@@ -268,9 +268,12 @@ if __name__ == "__main__":
     # matches figure in the handout
     # seed = np.array([0, 0, 0, -pi / 2, 0, pi / 2, pi / 4])
     seed = np.array([-0.01779206, -0.76012354, 0.01978261, -2.34205014, 0.02984053, 1.54119353,
-                     0.75344866]) # Neutral
-    # seed = np.array([-0.73334, -0.98047,  1.79643, -1.38878 , 0.94832 , 1.65292  ,1.90018])
-    # seed = np.array([ 1.55432 , 0.93489,  0.03942 ,-0.70566, -0.03179,  1.64015 , 2.36535])
+                     0.75344866])  # Neutral
+    # seed = np.array([-0.72447, -1.04341, 1.86912, -1.47874, 1.00503, 1.77894, 1.86558]) # stacking seed for interception red
+
+    seed = np.array([ 0.66627 ,-1.07283, -1.87788 ,-1.40123 ,-1.01893,  1.75296 ,-1.98986])
+    seed = np.array([ 0.18401, -0.8705,  -1.77148, -2.59228,  1.08475,  2.30342, -1.79455])
+
     # _, T_seed = fk.forward(seed)
     # print(T_seed)
 
@@ -280,14 +283,16 @@ if __name__ == "__main__":
     #     [0,0,-1,.5],
     #     [0,0,0, 1],
     # ])
-    # target = np.array([[1, 0, 0, 0],
+    # target = np.array([[1, 0  , 0, 0],
     #                    [0, -1, 0, 0.15],
     #                    [0, 0, -1, 0.25],
     #                    [0, 0, 0, 1]])
-    target = np.array([[0, 1, 0, 0.56],
-                        [0, 0, 1, -0.17],
-                        [1, 0, 0, 0.2 ],
-                        [0, 0, 0, 1]])
+    no_blocks = 3
+    margin = 0.02
+    target = np.array([[0, 0, 1, -0.05],
+                       [0, -1, 0, -0.73],
+                       [1, 0, 0, 0.24],
+                       [0, 0, 0, 1]])
     q, success, rollout = ik.inverse(target, seed)
 
     for i, q in enumerate(rollout):
@@ -298,6 +303,8 @@ if __name__ == "__main__":
     print("Success: ", success)
     print("Solution: ", q)
     print("Iterations:", len(rollout))
+
+    q = np.array([-1.85242, -1.23952, 2.48224, -0.94903, 1.90309, 0.91852, 1.80219])
     _, T_tar = fk.forward(q)
     print(T_tar)
 
