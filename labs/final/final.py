@@ -61,10 +61,10 @@ def camera_to_robot():
     return np.linalg.inv(T_r_c)
 
 
-def pose_to_joint(block_pose, intercept=False, intercept_blue=False):
-    if intercept:
+def pose_to_joint(block_pose, intercept_red=False, intercept_blue=False):
+    if intercept_red:
         seed = np.array([-0.72447, -1.04341, 1.86912, -1.47874, 1.00503, 1.77894, 1.86558])
-    if intercept_blue:
+    elif intercept_blue:
         seed = np.array([0.18401, -0.8705, -1.77148, -2.59228, 1.08475, 2.30342, -1.79455])
     else:
         seed = arm.neutral_position()
@@ -363,7 +363,7 @@ def generate_grasp_and_stack_blue(tag_name, block_pose, no_blocks, margin=0.033)
         return [grasp_up_joint, grasp_down_joint, stack_up_joint, stack_down_joint]
 
 
-def execute_grasp_and_stack(tag_name, joint_list):
+def execute_grasp_and_stack(joint_list):
     print("Move to grasp_up")
     arm.safe_move_to_position(joint_list[0])
     print("Move to grasp_down")
@@ -415,7 +415,7 @@ def execute_grasp_and_stack_dynamic_red(desired_number_of_dynamic_blocks, total_
                                [0, -1, 0, 0.978 - 0.305 + 0.035],
                                [-1, 0, 0, 0.225],
                                [0, 0, 0, 1]])
-    intercept_joint, _ = pose_to_joint(intercept_pose, intercept=True)
+    intercept_joint, _ = pose_to_joint(intercept_pose, intercept_red=True)
 
     intercept_ready_joint = intercept_joint.copy()
     intercept_ready_joint[0] -= 0.25
