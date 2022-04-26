@@ -421,14 +421,13 @@ def execute_grasp_and_stack_dynamic_red(desired_number_of_dynamic_blocks, total_
     intercept_ready_joint[0] -= 0.25
 
     while current_number_of_dynamic_blocks < desired_number_of_dynamic_blocks:
-        arm.close_gripper()
         arm.safe_move_to_position(intercept_ready_joint)
         arm.safe_move_to_position(intercept_joint)
 
         while not 7 > np.sum(arm.get_gripper_state()['position']) * 100 > 3:
             arm.open_gripper()
             wait_for_seconds(2)
-            arm.close_gripper()
+            arm.exec_gripper_cmd(0.048, 10)
             # print(np.sum(arm.get_gripper_state()['position']) * 100)
 
         arm.safe_move_to_position(intercept_ready_joint)
@@ -469,21 +468,21 @@ def execute_grasp_and_stack_dynamic_blue(desired_number_of_dynamic_blocks, total
     intercept_ready_joint[0] -= 0.23
 
     while current_number_of_dynamic_blocks < desired_number_of_dynamic_blocks:
-        arm.close_gripper()
+        arm.exec_gripper_cmd(0.048, 10)
         arm.safe_move_to_position(intercept_ready_joint)
         arm.safe_move_to_position(intercept_joint)
 
         while not 7 > np.sum(arm.get_gripper_state()['position']) * 100 > 3:
             arm.open_gripper()
             wait_for_seconds(2)
-            arm.close_gripper()
+            arm.exec_gripper_cmd(0.048, 10)
             # print(np.sum(arm.get_gripper_state()['position']) * 100)
 
         arm.safe_move_to_position(intercept_ready_joint)
         arm.safe_move_to_position(intermediate_joint)
 
         no_blocks = total_number_of_blocks
-        margin = 0.02
+        margin = 0.015
         if no_blocks == 0:
             margin = 0.033
         stack_down_pose = np.array([[0, 1, 0, 0.56],
@@ -589,7 +588,7 @@ if __name__ == "__main__":
             motion_list = generate_grasp_and_stack_blue(block[0], block[1], i)
         else:
             motion_list = generate_grasp_and_stack_red(block[0], block[1], i)
-        execute_grasp_and_stack(block[0], motion_list)
+        execute_grasp_and_stack(motion_list)
     arm.safe_move_to_position(arm.neutral_position())
 
     """Dynamic blocks"""
